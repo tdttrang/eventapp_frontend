@@ -1,5 +1,5 @@
 // app/index.js
-import Welcome from "../Welcome";
+import Welcome from "../welcome";
 
 export default function Index() {
   return <Welcome />;
