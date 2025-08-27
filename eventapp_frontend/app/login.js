@@ -1,9 +1,20 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Google from "expo-auth-session/providers/google";
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient'; // Thư viện tạo gradient background
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
-import { Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as WebBrowser from "expo-web-browser";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import qs from 'qs'; // thu vien giup stringify object thanh form-urlencoded
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { auth } from './firebase';
+import api, { endpoints } from '../services/api';
+import * as AuthSession from 'expo-auth-session';
+
+
+WebBrowser.maybeCompleteAuthSession();
 
 
 const Login = () => {
@@ -11,10 +22,69 @@ const Login = () => {
   const opacity = useSharedValue(0); // Giá trị ban đầu cho animation opacity (ẩn)
   const scale = useSharedValue(1); // Giá trị ban đầu cho animation scale của button
 
+  // State để quản lý form inputs
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false); // State để quản lý trạng thái loading
+
+  // Sử dụng redirectUri của Expo proxy
+  // Tạo redirectUri động với proxy cho Expo Go
+  const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+  console.log('Redirect URI:', redirectUri);
+  // Cấu hình Google Auth
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: "986556347009-3e51v68q4vp643nsgscttdlfl49jukpe.apps.googleusercontent.com",
+    androidClientId: "986556347009-8ufou26gfe92vkbhs1vjuo4v49gso4g3.apps.googleusercontent.com",
+    redirectUri,
+  }, {
+    useProxy: true, // Sử dụng proxy của Expo
+    selectAccount: true, // Cho phép chọn tài khoản Google
+  });
+
+  
+
+  // Client ID và Client Secret từ backend
+  const CLIENT_ID = 'INuD9I5SADMpikgGPfdgZeYKdu1NncPKrDs7b70l';
+  const CLIENT_SECRET = 'DjFi2UJC1VpacmEdA2KngGZUWAHxEBY2Ek6reKahAhT3ckau7mR5fQY3Lg0PFDKTmEPGScHJR3CiVCmH7UxwOe0odSwuJ4IKqxLb7r9e2PiYIYIHyHNJ4frH7RpRqaEL';
+
   // Hiệu ứng khi màn hình load: form fade-in và slide-up
   useEffect(() => {
     opacity.value = withSpring(1, { damping: 10 }); // Damping 10 tạo hiệu ứng spring mượt mà
   }, []);
+
+  useEffect(() => {
+    if (response) {
+      console.log('Google Auth Response:', JSON.stringify(response));
+      if (response.type === 'success' && response.authentication) {
+        (async () => {
+          try {
+            const { idToken } = response.authentication;
+            console.log('ID Token:', idToken);
+            const credential = GoogleAuthProvider.credential(idToken);
+            const userCredential = await signInWithCredential(auth, credential);
+            const user = userCredential.user;
+            const firebaseToken = await user.getIdToken();
+            console.log('Firebase ID Token:', firebaseToken);
+            const res = await api.post(endpoints.googleLogin, { token: firebaseToken });
+            console.log('Backend Response:', res.data);
+            await AsyncStorage.setItem('access-token', res.data.access_token);
+            if (res.data.refresh_token) {
+              await AsyncStorage.setItem('refresh-token', res.data.refresh_token);
+            }
+            Alert.alert('Thành công', 'Đăng nhập Google thành công!');
+            router.push('/tabs/tickets');
+          } catch (error) {
+            console.error('Google login error:', error);
+            Alert.alert('Lỗi', `Đăng nhập Google thất bại: ${error.message}`);
+          }
+        })();
+      } else {
+        console.log('Google Auth Failed or Cancelled:', response);
+        Alert.alert('Lỗi', `Đăng nhập Google bị hủy: ${JSON.stringify(response)}`);
+      }
+    }
+  }, [response]);
+
 
   // Tạo style animation cho form (opacity và translateY)
   const animatedFormStyle = useAnimatedStyle(() => ({
@@ -28,16 +98,117 @@ const Login = () => {
   }));
 
   // Xử lý khi nhấn button Đăng nhập (hiệu ứng scale)
-  const handlePress = () => {
+  const handleLogin = async () => {
+    // animation khi nhấn nút
     scale.value = withTiming(0.95, { duration: 100 }, () => { // Thu nhỏ 5% khi nhấn
       scale.value = withTiming(1, { duration: 100 }); // Trở lại kích thước ban đầu
     });
-    // Logic đăng nhập sẽ thêm sau khi giao diện xong
+    // validate input trống
+    if (!username.trim() || !password) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin.');
+      return;
+    }
+    setLoading(true); // Bắt đầu loading
+
+    // dữ liệu login gửi đi
+    const data = {
+      username: username,
+      password: password,
+      grant_type: 'password',
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+    };
+    try {
+      //  gửi request đăng nhập
+    const response = await api.post(endpoints['login'], qs.stringify(data), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+      console.log('Login response:', response.data);
+      // Lưu token vào AsyncStorage để tái sử dụng
+      await AsyncStorage.setItem('access-token', response.data.access_token);
+      await AsyncStorage.setItem('refresh-token', response.data.refresh_token);
+      Alert.alert('Thành công', 'Đăng nhập thành công!');
+      router.push('/tabs/tickets');
+    } catch (error) {      
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      // bắt lỗi từ response của server
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+        if (errorData.error === 'invalid_grant' || (errorData.error_description && errorData.error_description.includes("Invalid credentials"))) {
+          errorMessage = "Sai tên đăng nhập hoặc mật khẩu.";
+        }
+      // Bắt lỗi liên quan đến mạng (không có kết nối, server không phản hồi)
+      } else if (error.request) {
+        errorMessage = "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng của bạn.";
+      }
+      Alert.alert('Lỗi', errorMessage);
+    } finally {
+      setLoading(false); // Kết thúc loading
+    }
+  };
+
+  // ham login với google
+//   const handleGoogleLogin = async () => {
+//     try {
+//       console.log('Starting Google login...');
+//        // Gọi promptAsync để hiển thị popup login Google
+//     const result = await promptAsync();
+//       console.log('Google Auth Result:', JSON.stringify(result));
+
+//     if (result.type === 'success' && result.authentication) {
+//       const { idToken } = result.authentication;
+//       console.log('Google ID Token:', idToken);
+
+//       // Tạo credential Firebase từ idToken
+//       const credential = GoogleAuthProvider.credential(idToken);
+
+//       // Đăng nhập Firebase
+//       const userCredential = await signInWithCredential(auth, credential);
+//       const user = userCredential.user;
+
+//       // Lấy Firebase ID token để gửi lên backend
+//       const firebaseToken = await user.getIdToken();
+//       console.log('Firebase ID Token:', firebaseToken);
+
+//       // Gửi token lên backend để tạo session
+//       const res = await api.post(endpoints.googleLogin, { token: firebaseToken });
+//       console.log('Backend Google Login Response:', res.data);
+//       await AsyncStorage.setItem('access-token', res.data.access_token);
+//       if (res.data.refresh_token) {
+//         await AsyncStorage.setItem('refresh-token', res.data.refresh_token);
+//       }
+
+//       Alert.alert('Thành công', 'Đăng nhập Google thành công!');
+//       router.push('/tabs/tickets');
+//     } else {
+//       Alert.alert('Lỗi', 'Đăng nhập Google bị hủy.');
+//     }
+//   } catch (error) {
+//     console.error('Google login error:', error);
+// Alert.alert('Lỗi', `Đăng nhập Google thất bại: ${error.message}`);  }
+// };
+  const handleGoogleLogin = async () => {
+    try {
+      console.log('Starting Google login...');
+      console.log('Request URL:', request?.url); // Debug URL gửi đi
+      if (!request) {
+        console.log('Request not ready');
+        Alert.alert('Lỗi', 'Yêu cầu đăng nhập Google chưa sẵn sàng.');
+        return;
+      }
+      // Mở WebView in-app thay vì trình duyệt bên ngoài
+      await promptAsync();
+    } catch (error) {
+      console.error('Prompt Async Error:', error);
+      Alert.alert('Lỗi', `Lỗi khi mở đăng nhập Google: ${error.message}`);
+    }
   };
 
   // Xử lý khi nhấn nút back để quay về welcome
   const handleBack = () => {
-    router.back(); // Quay lại màn hình trước (welcome)
+    router.push('/welcome'); // Navigate to the welcome screen 
   };
 
   return (
@@ -62,12 +233,14 @@ const Login = () => {
       </View>
       <Animated.View style={[styles.formContainer, animatedFormStyle]}>
         <Text style={styles.title}>Đăng nhập</Text>
-        {/* Input cho username hoặc email */}
+        {/* Input cho username */}
         <TextInput
           style={styles.input}
-          placeholder="Tên người dùng hoặc Email"
+          placeholder="Tên người dùng"
           placeholderTextColor="#BBB"
           autoCapitalize="none"
+          value = {username}
+          onChangeText={setUsername}
         />
         {/* Input cho password */}
         <TextInput
@@ -75,6 +248,8 @@ const Login = () => {
           placeholder="Mật khẩu"
           secureTextEntry
           placeholderTextColor="#BBB"
+          value = {password}
+          onChangeText={setPassword}
         />
         {/* "Quên mật khẩu" nằm dưới ô input mật khẩu */}
         <TouchableOpacity onPress={() => console.log('Quên mật khẩu clicked')} style={styles.forgotPasswordContainer}>
@@ -82,16 +257,16 @@ const Login = () => {
         </TouchableOpacity>
         {/* Button Đăng nhập với animation */}
         <Animated.View style={animatedButtonStyle}>
-          <Pressable style={styles.button} onPress={handlePress}>
-            <Text style={styles.buttonText}>Đăng nhập</Text>
+          <Pressable style={styles.button} onPress={handleLogin} disabled={loading}>
+              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Đăng nhập</Text>}
           </Pressable>
         </Animated.View>
         <Text style={styles.subText}>
           Hoặc đăng nhập bằng tài khoản Google
         </Text>
         {/* Nút Google (placeholder, logic sẽ thêm sau) */}
-        <Pressable style={styles.googleButton} onPress={() => console.log('Đăng nhập Google sẽ thêm sau')}>
-          <Text style={styles.googleText}>Đăng nhập với Google</Text>
+        <Pressable style={styles.googleButton} onPress={handleGoogleLogin}>
+          <Text style={styles.googleText}>Đăng nhập với Google</Text>          
         </Pressable>
         {/* Link chuyển sang đăng ký */}
         <TouchableOpacity onPress={() => router.push('/register')}>

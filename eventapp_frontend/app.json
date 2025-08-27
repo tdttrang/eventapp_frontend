@@ -2,6 +2,7 @@
   "expo": {
     "name": "eventapp_frontend",
     "slug": "eventapp_frontend",
+    "owner": "tdttrang",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,7 +17,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.tdttrang.eventapp_frontend"
     },
     "web": {
       "bundler": "metro",
@@ -34,10 +36,23 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9b7d76bf-eda3-46ea-9dc7-2bfebcc7e256"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9b7d76bf-eda3-46ea-9dc7-2bfebcc7e256"
     }
   }
 }
