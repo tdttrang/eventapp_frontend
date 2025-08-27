@@ -7,6 +7,144 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { Picker } from '@react-native-picker/picker';
 import api, { endpoints } from '../services/api';
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  blurBackground: {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  header: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    width: '85%',
+    paddingTop: 10,
+    marginBottom: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    padding: 5,
+    zIndex: 1,
+  },
+  backIcon: {
+    width: 35,
+    height: 35,
+    resizeMode: 'contain',
+  },
+  welcomeTextContainer: {
+    flex: 1,
+  },
+  welcomeTop: {
+    fontSize: 40,
+    color: '#FFF',
+    fontWeight: 'bold',
+    marginBottom: 5,
+    marginTop: 20,
+  },
+  welcomeBottom: {
+    fontSize: 20,
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  formContainer: {
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 32,
+    color: '#FFF',
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  subText: {
+    color: '#2b1871ff',
+    fontSize: 13,
+    marginTop: 30,
+    textAlign: 'center',
+  },
+  input: {
+    width: '100%',
+    padding: 10,
+    marginVertical:5,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    color: '#FFF',
+    fontSize: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(19, 137, 27, 0.2)',
+  },
+  inputError: {
+    borderColor: '#FF4444',
+  },
+  errorText: {
+    color: '#FF4444',
+    fontSize: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 5,
+  },
+  pickerContainer: {
+    borderWidth: 2,
+    borderColor: 'rgba(19, 137, 27, 0.2)',
+    borderRadius: 10,
+    marginVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  picker: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    marginTop: 20,
+    elevation: 5,
+  },
+  buttonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  googleButton: {
+    backgroundColor: '#ffffffff',
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    marginTop: 10,
+    elevation: 3,
+  },
+  googleText: {
+    color: '#0088a0ff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  linkText: {
+    color: '#2196F3',
+    fontSize: 15,
+    marginTop: 20,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
+});
+
 const Register = () => {
   const router = useRouter();
   const opacity = useSharedValue(0);
@@ -189,140 +327,3 @@ const Register = () => {
 
 export default Register;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  blurBackground: {
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  header: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    width: '85%',
-    paddingTop: 10,
-    marginBottom: 20,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    padding: 5,
-    zIndex: 1,
-  },
-  backIcon: {
-    width: 35,
-    height: 35,
-    resizeMode: 'contain',
-  },
-  welcomeTextContainer: {
-    flex: 1,
-  },
-  welcomeTop: {
-    fontSize: 40,
-    color: '#FFF',
-    fontWeight: 'bold',
-    marginBottom: 5,
-    marginTop: 20,
-  },
-  welcomeBottom: {
-    fontSize: 20,
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
-  formContainer: {
-    width: '85%',
-    maxWidth: 400,
-    alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 32,
-    color: '#FFF',
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  subText: {
-    color: '#2b1871ff',
-    fontSize: 13,
-    marginTop: 30,
-    textAlign: 'center',
-  },
-  input: {
-    width: '100%',
-    padding: 10,
-    marginVertical:5,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
-    color: '#FFF',
-    fontSize: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(19, 137, 27, 0.2)',
-  },
-  inputError: {
-    borderColor: '#FF4444',
-  },
-  errorText: {
-    color: '#FF4444',
-    fontSize: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 5,
-  },
-  pickerContainer: {
-    borderWidth: 2,
-    borderColor: 'rgba(19, 137, 27, 0.2)',
-    borderRadius: 10,
-    marginVertical: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  picker: {
-    color: '#FFF',
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    marginTop: 20,
-    elevation: 5,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  googleButton: {
-    backgroundColor: '#ffffffff',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    marginTop: 10,
-    elevation: 3,
-  },
-  googleText: {
-    color: '#0088a0ff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  linkText: {
-    color: '#2196F3',
-    fontSize: 15,
-    marginTop: 20,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
-  },
-});

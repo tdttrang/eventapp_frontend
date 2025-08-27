@@ -8,6 +8,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "eventappfrontend",
     "deeplinks": true,
+    "runtimeVersion": "1.0.0",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -48,9 +49,6 @@
       "eas": {
         "projectId": "9b7d76bf-eda3-46ea-9dc7-2bfebcc7e256"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/9b7d76bf-eda3-46ea-9dc7-2bfebcc7e256"
