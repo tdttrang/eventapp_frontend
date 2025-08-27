@@ -35,7 +35,7 @@ const Login = () => {
   const [request, response, promptAsync] = Google.useAuthRequest({
     expoClientId: "986556347009-3e51v68q4vp643nsgscttdlfl49jukpe.apps.googleusercontent.com",
     androidClientId: "986556347009-8ufou26gfe92vkbhs1vjuo4v49gso4g3.apps.googleusercontent.com",
-    redirectUri,
+    redirectUri: AuthSession.makeRedirectUri({ useProxy: true }), // đảm bảo dev chạy qua proxy
   }, {
     useProxy: true, // Sử dụng proxy của Expo
     selectAccount: true, // Cho phép chọn tài khoản Google
