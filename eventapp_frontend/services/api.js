@@ -7,6 +7,8 @@ import qs from 'qs'; // Thư viện để chuyển đổi object thành form-url
 // Base URL của backend
 const BASE_URL = 'https://eventapp-production-bcaa.up.railway.app/';
 
+export const CLOUD_BASE_URL = "https://res.cloudinary.com/dachbxwws/";
+
 // Danh sách các endpoints
 export const endpoints = {
     'login': '/o/token/',

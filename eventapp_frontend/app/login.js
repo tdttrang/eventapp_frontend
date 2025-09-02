@@ -68,6 +68,9 @@ const Login = () => {
             const res = await api.post(endpoints.googleLogin, { token: firebaseToken });
             console.log('Backend Response:', res.data);
             await AsyncStorage.setItem('access-token', res.data.access_token);
+            authApi.defaults.headers.common[
+              "Authorization"
+            ] = `Bearer ${response.data.access_token}`;
             if (res.data.refresh_token) {
               await AsyncStorage.setItem('refresh-token', res.data.refresh_token);
             }
