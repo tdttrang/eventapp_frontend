@@ -1,43 +1,47 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
   ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
   ScrollView,
   StyleSheet,
-  Image,
-  TouchableOpacity,
-  Alert,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { authApi } from "../../services/api";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+import { authApi } from "../../services/api";
 
 export default function Profile() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // State để bật/tắt chế độ chỉnh sửa thông tin cá nhân
   const [isEditing, setIsEditing] = useState(false);
-  // State tạm để lưu giá trị form khi chỉnh sửa
   const [editData, setEditData] = useState({ username: "", email: "" });
-
+  const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
+  const [viewImageVisible, setViewImageVisible] = useState(false);
+  
   const placeholderAvatar =
     "https://res.cloudinary.com/dm9d5x14u/image/upload/v1698758863/images/default_avatar.png";
 
-  // Hàm gọi API lấy thông tin user hiện tại
+  const handleHelpCenter = () => {
+    Linking.openURL("https://www.google.com/");
+  };
+
   const fetchUser = () => {
     setLoading(true);
     authApi
       .get("/api/users/me/")
       .then((res) => {
         setUser(res.data);
-        // Khi load user xong, set giá trị form editData = dữ liệu hiện tại
         setEditData({ username: res.data.username, email: res.data.email });
       })
       .catch((err) => {
@@ -51,11 +55,18 @@ export default function Profile() {
       });
   };
 
-  // Hàm đổi avatar
-  const handleChangeAvatar = async () => {
-    // Mở thư viện ảnh để chọn avatar mới
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Quyền bị từ chối",
+        "Cần cấp quyền truy cập ảnh để thay đổi avatar"
+      );
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: "images",
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -69,13 +80,12 @@ export default function Profile() {
         type: "image/jpeg",
       });
 
-      // Gọi API upload avatar
       authApi
-        .post("/api/users/me/avatar/", formData, {
+        .patch("/api/users/me/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         })
         .then((res) => {
-          setUser(res.data); // backend trả về user mới với URL Cloudinary
+          setUser(res.data);
         })
         .catch((err) => {
           console.error(
@@ -86,13 +96,12 @@ export default function Profile() {
     }
   };
 
-  // Hàm lưu thông tin cá nhân sau khi chỉnh sửa
   const handleSaveProfile = () => {
     authApi
       .patch("/api/users/me/", editData)
       .then((res) => {
-        setUser(res.data); // Cập nhật state user với dữ liệu mới
-        setIsEditing(false); // Tắt chế độ chỉnh sửa
+        setUser(res.data);
+        setIsEditing(false);
       })
       .catch((err) => {
         console.error(
@@ -103,15 +112,21 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Xác nhận đăng xuất", "Bạn có chắc chắn muốn đăng xuất không?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Đăng xuất",
-        onPress: () => {
-          console.log("Đã xử lý đăng xuất!");
+    Alert.alert(
+      "Xác nhận đăng xuất",
+      "Bạn có chắc chắn muốn đăng xuất không?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Đăng xuất",
+          onPress: async () => {
+            await AsyncStorage.removeItem("access_token");
+            await AsyncStorage.removeItem("refresh_token");
+            router.replace("/login");
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   useEffect(() => {
@@ -142,18 +157,90 @@ export default function Profile() {
   return (
     <LinearGradient colors={["#ffbde7ff", "#b7f7ffff"]} style={{ flex: 1 }}>
       <SafeAreaView edges={["top"]} style={styles.header}>
-        <Text style={styles.headerTitle}>Hồ sơ của tôi</Text>
+        <Text style={[styles.headerTitle, { color: "#024430ff" }]}>
+          Hồ sơ của tôi
+        </Text>
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        <View style={styles.profileHeader}>
-          <TouchableOpacity onPress={handleChangeAvatar}>
-            <Image
-              source={{ uri: user.avatar || placeholderAvatar }}
-              style={styles.avatar}
-            />
-          </TouchableOpacity>
+        {/* Cover + Avatar */}
+        <View>
+          <Image
+            source={{ uri: "https://picsum.photos/800/300" }}
+            style={{ width: "100%", height: 170, opacity: 0.8 }}
+          />
+          <View style={{ alignItems: "center", marginTop: -50 }}>
+            <TouchableOpacity onPress={() => setAvatarMenuVisible(true)}>
+              <Image
+                source={{ uri: user.avatar || placeholderAvatar }}
+                style={styles.avatar}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
+        {/* Avatar menu modal */}
+        <Modal transparent visible={avatarMenuVisible} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* Xem ảnh đại diện */}
+              <TouchableOpacity
+                onPress={() => {
+                  setAvatarMenuVisible(false);
+                  if (user.avatar) {
+                    setViewImageVisible(true); // mở modal xem ảnh trong app
+                  } else {
+                    Alert.alert("Thông báo", "Bạn chưa có ảnh đại diện");
+                  }
+                }}
+              >
+                <Text style={styles.modalItem}>Xem ảnh đại diện</Text>
+              </TouchableOpacity>
+
+              {/* Thay đổi ảnh đại diện */}
+              <TouchableOpacity
+                onPress={() => {
+                  setAvatarMenuVisible(false);
+                  pickImage(); // gọi hàm chọn ảnh
+                }}
+              >
+                <Text style={styles.modalItem}>Thay đổi ảnh đại diện</Text>
+              </TouchableOpacity>
+
+              {/* Hủy */}
+              <TouchableOpacity onPress={() => setAvatarMenuVisible(false)}>
+                <Text style={[styles.modalItem, { color: "red" }]}>Hủy</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal xem ảnh đại diện */}
+        <Modal visible={viewImageVisible} transparent={true}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.9)",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <TouchableOpacity
+              style={{ position: "absolute", top: 40, right: 20 }}
+              onPress={() => setViewImageVisible(false)}
+            >
+              <Text style={{ color: "#fff", fontSize: 18 }}>Đóng</Text>
+            </TouchableOpacity>
+
+            <Image
+              source={{ uri: user.avatar }}
+              style={{ width: "90%", height: "70%", resizeMode: "contain" }}
+            />
+          </View>
+        </Modal>
+
+        {/* Thông tin */}
+        <View style={styles.profileHeader}>
           {isEditing ? (
             <>
               <TextInput
@@ -175,16 +262,24 @@ export default function Profile() {
             </>
           ) : (
             <>
-              <Text style={styles.username}>{user.username}</Text>
-              <Text style={styles.email}>{user.email}</Text>
+              <Text style={[styles.username, { color: "#333" }]}>
+                {user.username}
+              </Text>
+              <Text style={[styles.email, { color: "#666" }]}>
+                {user.email}
+              </Text>
             </>
           )}
         </View>
 
+        {/* Card thông tin */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Thông tin tài khoản</Text>
           {isEditing ? (
-            <TouchableOpacity style={styles.menuItem} onPress={handleSaveProfile}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleSaveProfile}
+            >
               <View style={styles.menuItemLeft}>
                 <Ionicons name="save-outline" size={24} color="#27ae60" />
                 <Text style={styles.menuItemText}>Lưu thay đổi</Text>
@@ -208,6 +303,19 @@ export default function Profile() {
           )}
         </View>
 
+        {/* Card ứng dụng */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Ứng dụng</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={handleHelpCenter}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="help-circle-outline" size={24} color="#f1c40f" />
+              <Text style={styles.menuItemText}>Trung tâm trợ giúp</Text>
+            </View>
+            <Ionicons name="chevron-forward-outline" size={24} color="#888" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Nút đăng xuất */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Đăng xuất</Text>
         </TouchableOpacity>
@@ -218,9 +326,9 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { paddingHorizontal: 16, paddingVertical: 10, alignItems: "center" },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
-  profileHeader: { alignItems: "center", paddingVertical: 20 },
+  header: { marginTop: 10, alignItems: "center", marginBottom: 10 },
+  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#024430ff" },
+  profileHeader: { alignItems: "center", paddingVertical: 5 },
   avatar: {
     width: 100,
     height: 100,
@@ -228,7 +336,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#fff",
   },
-  username: { fontSize: 24, fontWeight: "bold", marginTop: 10, color: "#333" },
+  username: { fontSize: 24, fontWeight: "bold", marginTop: 5, color: "#333" },
   email: { fontSize: 16, color: "#666", marginTop: 4 },
   input: {
     borderWidth: 1,
@@ -245,6 +353,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3, // Android
   },
   sectionTitle: {
     fontSize: 18,
@@ -264,9 +377,9 @@ const styles = StyleSheet.create({
   menuItemText: { fontSize: 16, marginLeft: 10, color: "#333" },
   logoutButton: {
     backgroundColor: "#e74c3c",
-    marginHorizontal: 16,
+    marginHorizontal: 100, // thu hẹp chiều ngang
     marginTop: 20,
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: "center",
   },
@@ -274,5 +387,24 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 20,
+    width: 250,
+  },
+  modalItem: {
+    fontSize: 16,
+    paddingVertical: 10,
+    textAlign: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
 });
