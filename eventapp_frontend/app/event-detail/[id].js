@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import moment from "moment";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
   ActivityIndicator,
+  Image,
   ScrollView,
   StyleSheet,
-  Image,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { api, CLOUD_BASE_URL } from "../../services/api";
-import moment from "moment";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import SelectTicketModal from "../../components/SelectTicketModal";
+import { api, CLOUD_BASE_URL } from "../../services/api";
 
 export default function EventDetail() {
   // --- BƯỚC 1: Gọi tất cả các hooks ---
@@ -24,8 +24,9 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     if (id) {
+      setLoading(true);
       api
         .get(`/api/events/${id}/`)
         .then((res) => setEvent(res.data))
@@ -35,6 +36,13 @@ export default function EventDetail() {
       setLoading(false);
     }
   }, [id]);
+
+  // Tải dữ liệu khi component mount hoặc id thay đổi
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   // --- BƯỚC 2: Định nghĩa tất cả các hàm xử lý ---
   const getImageUrl = (path) => {
@@ -50,7 +58,6 @@ export default function EventDetail() {
       params: { eventId: id, eventName },
     });
   };
-
 
   const handleBack = () => {
     router.back();

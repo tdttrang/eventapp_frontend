@@ -75,7 +75,7 @@ const Login = () => {
               await AsyncStorage.setItem('refresh-token', res.data.refresh_token);
             }
             Alert.alert('Thành công', 'Đăng nhập Google thành công!');
-            router.push('/tabs/tickets');
+            router.push('/tabs');
           } catch (error) {
             console.error('Google login error:', error);
             Alert.alert('Lỗi', `Đăng nhập Google thất bại: ${error.message}`);
@@ -133,7 +133,7 @@ const Login = () => {
       await AsyncStorage.setItem('access-token', response.data.access_token);
       await AsyncStorage.setItem('refresh-token', response.data.refresh_token);
       Alert.alert('Thành công', 'Đăng nhập thành công!');
-      router.push('/tabs/tickets');
+      router.push('/tabs');
     } catch (error) {      
       let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
       // bắt lỗi từ response của server

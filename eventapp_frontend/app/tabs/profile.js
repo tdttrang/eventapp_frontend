@@ -66,7 +66,7 @@ export default function Profile() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -76,12 +76,12 @@ export default function Profile() {
       const formData = new FormData();
       formData.append("avatar", {
         uri: result.assets[0].uri,
-        name: "avatar.jpg",
+        name: `avatar_${Date.now()}.jpg`,
         type: "image/jpeg",
       });
 
       authApi
-        .patch("/api/users/me/", formData, {
+        .post("/api/users/me/avatar/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         })
         .then((res) => {
@@ -172,7 +172,10 @@ export default function Profile() {
           <View style={{ alignItems: "center", marginTop: -50 }}>
             <TouchableOpacity onPress={() => setAvatarMenuVisible(true)}>
               <Image
-                source={{ uri: user.avatar || placeholderAvatar }}
+                key={user.avatar}
+                source={{
+                  uri: `${user.avatar || placeholderAvatar}?t=${Date.now()}`,
+                }}
                 style={styles.avatar}
               />
             </TouchableOpacity>
@@ -233,7 +236,7 @@ export default function Profile() {
             </TouchableOpacity>
 
             <Image
-              source={{ uri: user.avatar }}
+              source={{ uri: `${user.avatar}?t=${Date.now()}` }}
               style={{ width: "90%", height: "70%", resizeMode: "contain" }}
             />
           </View>

@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -17,45 +16,45 @@ import { authApi } from "../../../services/api";
 export default function ReviewBooking() {
   const params = useLocalSearchParams();
   const bookingId = params?.bookingId ? Number(params.bookingId) : null;
-  const eventId = params?.eventId ? Number(params.eventId) : null;
   const eventNameParam = params?.eventName || "";
 
   const router = useRouter();
 
   // State dữ liệu
-  const [eventTitle, setEventTitle] = useState(eventNameParam);
+  const [paymentMethod, setPaymentMethod] = useState("vnpay");
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Tính toán tổng số lượng và tổng tiền từ details
+  const details = booking?.details || [];
+
+  // Thêm biến để lấy thông tin event
+  const eventInfo = useMemo(() => {
+    // Lấy event từ chi tiết vé đầu tiên trong booking
+    return details?.[0]?.ticket?.event || null;
+  }, [details]);
+
   // State chọn phương thức thanh toán (mặc định VNPay)
   // Tip: Nếu sau này có thêm phương thức, chỉ cần mở rộng mảng paymentMethods (ở dưới)
-  const [paymentMethod, setPaymentMethod] = useState("vnpay");
-
-  // Nếu chưa có eventNameParam thì mới gọi API
-  useEffect(() => {
-    if (!eventNameParam && eventId) {
-      authApi
-        .get(`/api/events/${eventId}/`)
-        .then((res) => {
-          setEventTitle(res.data?.name || "");
-        })
-        .catch((err) => {
-          console.error("❌ Lỗi khi fetch event:", err.response?.data || err);
-        });
-    }
-  }, [eventId, eventNameParam]);
+  const paymentMethods = [
+    {
+      key: "vnpay",
+      title: "Thanh toán qua VNPay (Thẻ nội địa/ATM)",
+      subtitle: "Hỗ trợ hầu hết ngân hàng nội địa",
+      icon: "card-outline",
+    },
+    {
+      key: "paypal",
+      title: "Thanh toán qua PayPal",
+      subtitle: "Thanh toán quốc tế (USD)",
+      icon: "logo-paypal",
+    },
+  ];
 
   useEffect(() => {
     const fetchBooking = async () => {
       try {
-        const token = await AsyncStorage.getItem("access-token");
-        const res = await authApi.get(`/api/bookings/${bookingId}/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        console.log(
-          "DỮ LIỆU BOOKING NHẬN ĐƯỢC:",
-          JSON.stringify(res.data, null, 2)
-        );
+        const res = await authApi.get(`/api/bookings/${bookingId}/`);
         setBooking(res.data);
       } catch (err) {
         console.error("❌ Lỗi khi load booking:", err.response?.data || err);
@@ -66,9 +65,6 @@ export default function ReviewBooking() {
     if (bookingId) fetchBooking();
   }, [bookingId]);
 
-  // Tính toán tổng số lượng và tổng tiền từ details
-  const details = booking?.details || [];
-
   const totalQuantity = useMemo(
     () => details.reduce((sum, d) => sum + (d.quantity || 0), 0),
     [details]
@@ -76,7 +72,7 @@ export default function ReviewBooking() {
   const totalPrice = useMemo(
     () =>
       details.reduce(
-        (sum, d) => sum + Number(d.price || 0) * (d.quantity || 0),
+        (sum, d) => sum + Number(d.ticket?.price || 0) * (d.quantity || 0),
         0
       ),
     [details]
@@ -109,18 +105,6 @@ export default function ReviewBooking() {
     );
   }
 
-  // Danh sách phương thức thanh toán hiển thị
-  const paymentMethods = [
-    {
-      key: "vnpay",
-      title: "Thanh toán qua VNPay (Thẻ nội địa/ATM)",
-      subtitle: "Hỗ trợ hầu hết ngân hàng nội địa",
-      icon: "card-outline",
-    },
-    // Có thể thêm các phương thức khác ở đây
-    // { key: "momo", title: "Ví MoMo", subtitle: "Quét mã / liên kết ví", icon: "logo-usd" }
-  ];
-
   // Xử lý action Thanh toán
   const handlePay = () => {
     // Điều hướng kèm phương thức đã chọn (đơn giản hoá: append query)
@@ -148,7 +132,7 @@ export default function ReviewBooking() {
           <View style={styles.row}>
             <Text style={styles.label}>Sự kiện</Text>
             <Text style={styles.value} numberOfLines={1}>
-              {eventTitle || details?.[0]?.event_name || "Đang cập nhật"}
+              {eventInfo?.name || "Đang cập nhật"}
             </Text>
           </View>
           <View style={styles.row}>
@@ -170,20 +154,23 @@ export default function ReviewBooking() {
             <Text style={styles.muted}>Chưa có vé trong booking này.</Text>
           ) : (
             details.map((d) => {
-              const lineTotal = Number(d.price || 0) * (d.quantity || 0);
+              const lineTotal =
+                Number(d.ticket?.price || 0) * (d.quantity || 0);
               return (
-                <View key={d.id || d.ticket_id} style={styles.ticketRow}>
+                <View key={d.id} style={styles.ticketRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.ticketName}>
-                      {d.ticket_class || "Loại vé"}
+                      {d.ticket?.ticket_class || "Loại vé"}
                     </Text>
                     <Text style={styles.ticketMeta}>
-                      x{d.quantity} • {Number(d.price).toLocaleString("vi-VN")}{" "}
-                      VND/vé
+                      x{d.quantity} •{" "}
+                      {Number(d.ticket?.price).toLocaleString("vi-VN")} VND/vé
                     </Text>
                   </View>
                   <Text style={styles.ticketAmount}>
-                    {Number(lineTotal).toLocaleString("vi-VN")} VND
+                    {Number(d.ticket?.price || 0) *
+                      (d.quantity || 0).toLocaleString("vi-VN")}{" "}
+                    VND
                   </Text>
                 </View>
               );

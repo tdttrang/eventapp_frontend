@@ -1,278 +1,272 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-} from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { authApi } from "../../services/api";
+// app/tabs/notification.js
 import { Ionicons } from "@expo/vector-icons";
+import moment from "moment";
+import "moment/locale/vi";
+import {
+  Box,
+  Divider,
+  HStack,
+  Heading,
+  Icon,
+  VStack,
+  useToast,
+} from "native-base";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
+import { authApi } from "../../services/api"; // Sử dụng authApi
 
-export default function Profile() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
+moment.locale("vi");
+
+const NotificationScreen = () => {
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const toast = useToast();
 
-  // State để bật/tắt chế độ chỉnh sửa thông tin cá nhân
-  const [isEditing, setIsEditing] = useState(false);
-  // State tạm để lưu giá trị form khi chỉnh sửa
-  const [editData, setEditData] = useState({ username: "", email: "" });
-
-  const placeholderAvatar =
-    "https://res.cloudinary.com/dm9d5x14u/image/upload/v1698758863/images/default_avatar.png";
-
-  // Hàm gọi API lấy thông tin user hiện tại
-  const fetchUser = () => {
-    setLoading(true);
-    authApi
-      .get("/api/users/me/")
-      .then((res) => {
-        setUser(res.data);
-        // Khi load user xong, set giá trị form editData = dữ liệu hiện tại
-        setEditData({ username: res.data.username, email: res.data.email });
-      })
-      .catch((err) => {
-        console.error(
-          "Lỗi khi lấy thông tin người dùng:",
-          err.response?.data || err.message
-        );
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
-
-  // Hàm đổi avatar
-  const handleChangeAvatar = async () => {
-    // Mở thư viện ảnh để chọn avatar mới
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      const formData = new FormData();
-      formData.append("avatar", {
-        uri: result.assets[0].uri,
-        name: "avatar.jpg",
-        type: "image/jpeg",
-      });
-
-      // Gọi API upload avatar
-      authApi
-        .post("/api/users/me/avatar/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        })
-        .then((res) => {
-          setUser(res.data); // backend trả về user mới với URL Cloudinary
-        })
-        .catch((err) => {
-          console.error(
-            "Lỗi khi upload avatar:",
-            err.response?.data || err.message
-          );
+  const fetchNotifications = useCallback(
+    async (pageNumber = 1) => {
+      try {
+        const res = await authApi.get(`/api/notifications/`, {
+          params: { page: pageNumber, page_size: 10 },
         });
+        const newNotifications = res.data.results;
+        setNotifications((prevNotifications) =>
+          pageNumber === 1
+            ? newNotifications
+            : [...prevNotifications, ...newNotifications]
+        );
+        setHasMore(!!res.data.next); // Kiểm tra xem còn trang tiếp theo không
+      } catch (err) {
+        toast.show({
+          title: "Lỗi",
+          description: "Không thể tải thông báo.",
+          status: "error",
+        });
+        console.error("Lỗi khi tải thông báo:", err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [toast]
+  );
+
+  useEffect(() => {
+    fetchNotifications(1);
+  }, [fetchNotifications]);
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      setPage((prevPage) => prevPage + 1);
+      fetchNotifications(page + 1);
     }
   };
 
-  // Hàm lưu thông tin cá nhân sau khi chỉnh sửa
-  const handleSaveProfile = () => {
-    authApi
-      .patch("/api/users/me/", editData)
-      .then((res) => {
-        setUser(res.data); // Cập nhật state user với dữ liệu mới
-        setIsEditing(false); // Tắt chế độ chỉnh sửa
-      })
-      .catch((err) => {
-        console.error(
-          "Lỗi khi cập nhật thông tin:",
-          err.response?.data || err.message
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setPage(1);
+    setNotifications([]); // Xóa danh sách cũ
+    fetchNotifications(1);
+  }, [fetchNotifications]);
+
+  const handlePressNotification = async (notification) => {
+    // Nếu thông báo chưa được đọc, gọi API để đánh dấu đã đọc
+    if (!notification.is_read) {
+      try {
+        await authApi.patch(
+          `/api/notifications/${notification.id}/mark_as_read/`
         );
-      });
+        // Cập nhật trạng thái is_read trên UI
+        setNotifications((prevNotifications) =>
+          prevNotifications.map((n) =>
+            n.id === notification.id ? { ...n, is_read: true } : n
+          )
+        );
+      } catch (err) {
+        toast.show({
+          title: "Lỗi",
+          description: "Không thể đánh dấu đã đọc.",
+          status: "error",
+        });
+        console.error("Lỗi khi đánh dấu đã đọc:", err);
+      }
+    }
+    // TODO: Có thể thêm logic điều hướng ở đây, ví dụ: chuyển sang màn hình Chi tiết Sự kiện
+    // router.push(`/event-detail/${notification.related_object_id}`);
   };
 
-  const handleLogout = () => {
-    Alert.alert("Xác nhận đăng xuất", "Bạn có chắc chắn muốn đăng xuất không?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Đăng xuất",
-        onPress: () => {
-          console.log("Đã xử lý đăng xuất!");
-        },
-      },
-    ]);
-  };
+  const renderItem = ({ item }) => (
+    <TouchableOpacity onPress={() => handlePressNotification(item)}>
+      <Box style={styles.notificationCard}>
+        <HStack space={3} alignItems="center">
+          <Icon
+            as={Ionicons}
+            name={item.is_read ? "mail-open" : "mail"}
+            size="2xl"
+            color={item.is_read ? "gray.400" : "blue.500"}
+          />
+          <VStack flex={1}>
+            <HStack justifyContent="space-between" alignItems="center">
+              <Text
+                style={[
+                  styles.notificationSubject,
+                  !item.is_read && styles.unreadSubject,
+                ]}
+              >
+                {item.subject}
+              </Text>
+              {!item.is_read && <Box style={styles.unreadBadge} />}
+            </HStack>
+            <Text
+              style={[
+                styles.notificationMessage,
+                !item.is_read && styles.unreadMessage,
+              ]}
+              numberOfLines={2}
+            >
+              {item.message}
+            </Text>
+            <Text style={styles.notificationTime}>
+              {moment(item.created_at).fromNow()}
+            </Text>
+          </VStack>
+        </HStack>
+        <Divider style={styles.divider} />
+      </Box>
+    </TouchableOpacity>
+  );
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  if (loading) {
+  const renderFooter = () => {
+    if (!loading || page === 1) return null;
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2ecc71" />
-        <Text style={{ marginTop: 10, color: "#888" }}>
-          Đang tải thông tin cá nhân...
-        </Text>
+      <View style={styles.footer}>
+        <ActivityIndicator size="small" color="#0000ff" />
       </View>
     );
-  }
+  };
 
-  if (!user) {
+  if (loading && page === 1) {
     return (
-      <View style={styles.center}>
-        <Text style={{ textAlign: "center" }}>
-          Không thể tải thông tin người dùng.
-        </Text>
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
   }
 
   return (
-    <LinearGradient colors={["#ffbde7ff", "#b7f7ffff"]} style={{ flex: 1 }}>
-      <SafeAreaView edges={["top"]} style={styles.header}>
-        <Text style={styles.headerTitle}>Hồ sơ của tôi</Text>
-      </SafeAreaView>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        <View style={styles.profileHeader}>
-          <TouchableOpacity onPress={handleChangeAvatar}>
-            <Image
-              source={{ uri: user.avatar || placeholderAvatar }}
-              style={styles.avatar}
+    <SafeAreaView style={styles.container}>
+      <VStack space={4} p={4}>
+        <Heading size="lg" style={styles.header}>
+          Thông báo của bạn
+        </Heading>
+        {notifications.length > 0 ? (
+          <FlatList
+            data={notifications}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#0000ff"
+              />
+            }
+          />
+        ) : (
+          <Box style={styles.emptyContainer}>
+            <Icon
+              as={Ionicons}
+              name="notifications-off-outline"
+              size="6xl"
+              color="gray.400"
             />
-          </TouchableOpacity>
-
-          {isEditing ? (
-            <>
-              <TextInput
-                style={styles.input}
-                value={editData.username}
-                onChangeText={(text) =>
-                  setEditData({ ...editData, username: text })
-                }
-                placeholder="Tên người dùng"
-              />
-              <TextInput
-                style={styles.input}
-                value={editData.email}
-                onChangeText={(text) =>
-                  setEditData({ ...editData, email: text })
-                }
-                placeholder="Email"
-              />
-            </>
-          ) : (
-            <>
-              <Text style={styles.username}>{user.username}</Text>
-              <Text style={styles.email}>{user.email}</Text>
-            </>
-          )}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Thông tin tài khoản</Text>
-          {isEditing ? (
-            <TouchableOpacity style={styles.menuItem} onPress={handleSaveProfile}>
-              <View style={styles.menuItemLeft}>
-                <Ionicons name="save-outline" size={24} color="#27ae60" />
-                <Text style={styles.menuItemText}>Lưu thay đổi</Text>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => setIsEditing(true)}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons
-                  name="person-circle-outline"
-                  size={24}
-                  color="#3498db"
-                />
-                <Text style={styles.menuItemText}>Chỉnh sửa hồ sơ</Text>
-              </View>
-              <Ionicons name="chevron-forward-outline" size={24} color="#888" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Đăng xuất</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </LinearGradient>
+            <Text style={styles.emptyText}>Bạn chưa có thông báo nào.</Text>
+          </Box>
+        )}
+      </VStack>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: { paddingHorizontal: 16, paddingVertical: 10, alignItems: "center" },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
-  profileHeader: { alignItems: "center", paddingVertical: 20 },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "#fff",
+  container: {
+    flex: 1,
+    backgroundColor: "white",
   },
-  username: { fontSize: 24, fontWeight: "bold", marginTop: 10, color: "#333" },
-  email: { fontSize: 16, color: "#666", marginTop: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 8,
-    marginTop: 8,
-    width: 200,
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    marginBottom: 10,
+    fontWeight: "bold",
     textAlign: "center",
   },
-  card: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
+  notificationCard: {
+    backgroundColor: "white",
+    paddingVertical: 15,
+    paddingHorizontal: 10,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 8,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-  },
-  menuItemLeft: { flexDirection: "row", alignItems: "center" },
-  menuItemText: { fontSize: 16, marginLeft: 10, color: "#333" },
-  logoutButton: {
-    backgroundColor: "#e74c3c",
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  logoutButtonText: {
-    color: "#fff",
+  notificationSubject: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
+  },
+  unreadSubject: {
+    color: "#2196F3",
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: "gray",
+    marginTop: 4,
+  },
+  unreadMessage: {
+    fontWeight: "bold",
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: "#a0a0a0",
+    marginTop: 4,
+  },
+  unreadBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#2196F3",
+  },
+  divider: {
+    marginTop: 15,
+    backgroundColor: "#e0e0e0",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "gray",
+    marginTop: 10,
+  },
+  footer: {
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderColor: "#e0e0e0",
   },
 });
+
+export default NotificationScreen;
