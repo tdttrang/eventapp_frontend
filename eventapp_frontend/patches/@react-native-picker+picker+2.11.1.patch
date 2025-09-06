@@ -1,0 +1,13 @@
+diff --git a/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml b/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml
+index 4699b30..3c21b61 100644
+--- a/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml
++++ b/node_modules/@react-native-picker/picker/android/src/main/AndroidManifest.xml
+@@ -1,6 +1,5 @@
+ 
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-          package="com.reactnativecommunity.picker">
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ 
+ </manifest>
+   
+\ No newline at end of file
