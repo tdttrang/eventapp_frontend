@@ -11,11 +11,11 @@ export const CLOUD_BASE_URL = "https://res.cloudinary.com/dachbxwws/";
 
 // Danh sách các endpoints
 export const endpoints = {
-    'login': '/o/token/',
-    'registerAttendee': '/api/users/register/',
-    'registerOrganizer': '/api/organizers/',
-    'googleLogin': '/api/firebase-login/',
-    'currentUser': '/api/users/current-user/', 
+  login: "o/token/",
+  registerAttendee: "/api/users/register/",
+  registerOrganizer: "/api/organizers/",
+  googleLogin: "/api/firebase-login/",
+  currentUser: "/api/users/me/",
 };
 
 // Client ID và Client Secret từ backend
@@ -75,10 +75,12 @@ export const authApi = axios.create({
 
 // Interceptor cho authApi: tự động gắn token và refresh khi hết hạn
 authApi.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('access-token');
+  const token = await AsyncStorage.getItem("access-token");
+  console.log("Interceptor gắn token:", token);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log("Request headers:", config.headers); // 👈 log thêm
   return config;
 });
 

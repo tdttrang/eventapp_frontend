@@ -10,17 +10,20 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { auth } from './firebase';
-import api, { endpoints } from '../services/api';
+import api, { endpoints, authApi } from '../services/api';
 import * as AuthSession from 'expo-auth-session';
+import { useAuth } from '../hooks/useAuth';
 
 
 WebBrowser.maybeCompleteAuthSession();
 
 
 const Login = () => {
-  const router = useRouter(); // Hook để điều hướng giữa các màn hình
+  const router = useRouter(); 
   const opacity = useSharedValue(0); // Giá trị ban đầu cho animation opacity (ẩn)
   const scale = useSharedValue(1); // Giá trị ban đầu cho animation scale của button
+  const { login } = useAuth(); // Lấy hàm login từ context
+
 
   // State để quản lý form inputs
   const [username, setUsername] = useState('');
@@ -59,23 +62,29 @@ const Login = () => {
         (async () => {
           try {
             const { idToken } = response.authentication;
-            console.log('ID Token:', idToken);
+            console.log("ID Token:", idToken);
             const credential = GoogleAuthProvider.credential(idToken);
             const userCredential = await signInWithCredential(auth, credential);
             const user = userCredential.user;
             const firebaseToken = await user.getIdToken();
-            console.log('Firebase ID Token:', firebaseToken);
-            const res = await api.post(endpoints.googleLogin, { token: firebaseToken });
-            console.log('Backend Response:', res.data);
-            await AsyncStorage.setItem('access-token', res.data.access_token);
+            console.log("Firebase ID Token:", firebaseToken);
+            const res = await api.post(endpoints.googleLogin, {
+              token: firebaseToken,
+            });
+            console.log("Backend Response:", res.data);
+            await AsyncStorage.setItem("access-token", res.data.access_token);
+            await AsyncStorage.setItem("refresh-token", res.data.refresh_token);
             authApi.defaults.headers.common[
               "Authorization"
-            ] = `Bearer ${response.data.access_token}`;
+            ] = `Bearer ${res.data.access_token}`; 
             if (res.data.refresh_token) {
-              await AsyncStorage.setItem('refresh-token', res.data.refresh_token);
+              await AsyncStorage.setItem(
+                "refresh-token",
+                res.data.refresh_token
+              );
             }
-            Alert.alert('Thành công', 'Đăng nhập Google thành công!');
-            router.push('/tabs');
+            Alert.alert("Thành công", "Đăng nhập Google thành công!");
+            router.push("/tabs");
           } catch (error) {
             console.error('Google login error:', error);
             Alert.alert('Lỗi', `Đăng nhập Google thất bại: ${error.message}`);
@@ -129,11 +138,15 @@ const Login = () => {
       },
     });
       console.log('Login response:', response.data);
-      // Lưu token vào AsyncStorage để tái sử dụng
-      await AsyncStorage.setItem('access-token', response.data.access_token);
-      await AsyncStorage.setItem('refresh-token', response.data.refresh_token);
-      Alert.alert('Thành công', 'Đăng nhập thành công!');
-      router.push('/tabs');
+      // cập nhật state user trong context
+      await login(response.data.access_token, response.data.refresh_token);
+      Alert.alert("Thành công", "Đăng nhập thành công!");
+      const me = await authApi.get(endpoints.currentUser);
+      if (me.data.role?.toLowerCase() === "organizer") {
+        router.replace("/organizer");
+      } else {
+        router.replace("/tabs");
+      }
     } catch (error) {      
       let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
       // bắt lỗi từ response của server
@@ -152,46 +165,7 @@ const Login = () => {
     }
   };
 
-  // ham login với google
-//   const handleGoogleLogin = async () => {
-//     try {
-//       console.log('Starting Google login...');
-//        // Gọi promptAsync để hiển thị popup login Google
-//     const result = await promptAsync();
-//       console.log('Google Auth Result:', JSON.stringify(result));
-
-//     if (result.type === 'success' && result.authentication) {
-//       const { idToken } = result.authentication;
-//       console.log('Google ID Token:', idToken);
-
-//       // Tạo credential Firebase từ idToken
-//       const credential = GoogleAuthProvider.credential(idToken);
-
-//       // Đăng nhập Firebase
-//       const userCredential = await signInWithCredential(auth, credential);
-//       const user = userCredential.user;
-
-//       // Lấy Firebase ID token để gửi lên backend
-//       const firebaseToken = await user.getIdToken();
-//       console.log('Firebase ID Token:', firebaseToken);
-
-//       // Gửi token lên backend để tạo session
-//       const res = await api.post(endpoints.googleLogin, { token: firebaseToken });
-//       console.log('Backend Google Login Response:', res.data);
-//       await AsyncStorage.setItem('access-token', res.data.access_token);
-//       if (res.data.refresh_token) {
-//         await AsyncStorage.setItem('refresh-token', res.data.refresh_token);
-//       }
-
-//       Alert.alert('Thành công', 'Đăng nhập Google thành công!');
-//       router.push('/tabs/tickets');
-//     } else {
-//       Alert.alert('Lỗi', 'Đăng nhập Google bị hủy.');
-//     }
-//   } catch (error) {
-//     console.error('Google login error:', error);
-// Alert.alert('Lỗi', `Đăng nhập Google thất bại: ${error.message}`);  }
-// };
+  // Xử lý khi nhấn nút Google
   const handleGoogleLogin = async () => {
     try {
       console.log('Starting Google login...');

@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authApi } from "../../services/api";
+import { useAuth } from "../../hooks/useAuth";  
 
 export default function Profile() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function Profile() {
   const [editData, setEditData] = useState({ username: "", email: "" });
   const [avatarMenuVisible, setAvatarMenuVisible] = useState(false);
   const [viewImageVisible, setViewImageVisible] = useState(false);
+  const { logout } = useAuth();
   
   const placeholderAvatar =
     "https://res.cloudinary.com/dm9d5x14u/image/upload/v1698758863/images/default_avatar.png";
@@ -119,11 +121,7 @@ export default function Profile() {
         { text: "Hủy", style: "cancel" },
         {
           text: "Đăng xuất",
-          onPress: async () => {
-            await AsyncStorage.removeItem("access_token");
-            await AsyncStorage.removeItem("refresh_token");
-            router.replace("/login");
-          },
+          onPress: logout,
         },
       ]
     );
