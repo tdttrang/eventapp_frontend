@@ -56,8 +56,8 @@ const EventCard = ({ item }) => {
           <Text style={styles.infoText}>{item.location}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Ionicons name="ticket-outline" size={16} color="#4CAF50" />
-          <Text style={styles.infoText}>Chưa có dữ liệu vé</Text>
+          <Ionicons name="pricetag-outline" size={16} color="#00796B" />
+          <Text style={styles.infoText}>{item.category}</Text>
         </View>
       </View>
     </TouchableOpacity>

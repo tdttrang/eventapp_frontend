@@ -31,7 +31,7 @@ export default function OrganizerLayout() {
             }
             return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: "#FF6347", // màu tab khi active
+          tabBarActiveTintColor: "#00aaff", // màu tab khi active
           tabBarInactiveTintColor: "gray", // màu tab khi inactive
           tabBarStyle: { backgroundColor: "white" },
           headerShown: false,

@@ -16,6 +16,12 @@ export const endpoints = {
   registerOrganizer: "/api/organizers/",
   googleLogin: "/api/firebase-login/",
   currentUser: "/api/users/me/",
+  notifications: "/api/notifications/",
+  markAsRead: (notificationId) =>
+    `/api/notifications/${notificationId}/mark_as_read/`,
+  markAllAsRead: "/api/notifications/mark_all_as_read/",
+
+  organizerStats: "/api/organizer/stats/",
 };
 
 // Client ID và Client Secret từ backend

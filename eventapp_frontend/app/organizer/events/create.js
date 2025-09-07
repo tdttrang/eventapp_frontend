@@ -1,16 +1,15 @@
 // app/organizer/events/create.js
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Formik } from "formik";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,11 +17,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Yup from "yup";
-import { authApi, CLOUD_BASE_URL } from "../../../services/api";
+import { authApi } from "../../../services/api";
 
 // --- Schema Validation dùng Yup ---
 const CreateEventSchema = Yup.object().shape({
@@ -30,13 +29,19 @@ const CreateEventSchema = Yup.object().shape({
   description: Yup.string().required("Mô tả là bắt buộc"),
   location: Yup.string().required("Địa điểm là bắt buộc"),
   category: Yup.string().required("Danh mục là bắt buộc"),
-  date: Yup.date().required("Ngày diễn ra là bắt buộc").min(new Date(), "Ngày diễn ra phải ở trong tương lai"),
+  date: Yup.date()
+    .required("Ngày diễn ra là bắt buộc")
+    .min(new Date(), "Ngày diễn ra phải ở trong tương lai"),
   tickets: Yup.array()
     .of(
       Yup.object().shape({
         ticket_class: Yup.string().required("Tên loại vé là bắt buộc"),
-        price: Yup.number().required("Giá vé là bắt buộc").min(0, "Giá vé không hợp lệ"),
-        quantity: Yup.number().required("Số lượng là bắt buộc").min(1, "Số lượng phải lớn hơn 0"),
+        price: Yup.number()
+          .required("Giá vé là bắt buộc")
+          .min(0, "Giá vé không hợp lệ"),
+        quantity: Yup.number()
+          .required("Số lượng là bắt buộc")
+          .min(1, "Số lượng phải lớn hơn 0"),
       })
     )
     .min(1, "Phải có ít nhất một loại vé"),
@@ -48,23 +53,27 @@ export default function CreateEventScreen() {
   const queryClient = useQueryClient();
   const [images, setImages] = useState([]); // Lưu các URI của ảnh được chọn
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // --- Logic Upload Ảnh lên Cloudinary ---
   const uploadImageToCloudinary = async (uri) => {
-
     const formData = new FormData();
-    formData.append('file', {
+    formData.append("file", {
       uri,
-      type: 'image/jpeg',
-      name: 'event-image.jpg',
+      type: "image/jpeg",
+      name: "event-image.jpg",
     });
-    formData.append('upload_preset', 'eventapp_unsigned'); // Preset không cần chữ ký
+    formData.append("upload_preset", "eventapp_unsigned"); // Preset không cần chữ ký
 
     try {
-      const response = await fetch('https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload', { // <-- THAY YOUR_CLOUD_NAME
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch(
+        "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload",
+        {
+          // <-- THAY YOUR_CLOUD_NAME
+          method: "POST",
+          body: formData,
+        }
+      );
       const data = await response.json();
       return data.secure_url; // Trả về URL an toàn
     } catch (error) {
@@ -72,7 +81,6 @@ export default function CreateEventScreen() {
       return null;
     }
   };
-
 
   // --- Dùng useMutation để xử lý việc gọi API tạo sự kiện ---
   const mutation = useMutation({
@@ -90,8 +98,8 @@ export default function CreateEventScreen() {
       router.back();
     },
     onError: (error) => {
-      console.error("Create Event Error:", error.response?.data);
-      Alert.alert("Lỗi", "Đã có lỗi xảy ra. Vui lòng thử lại.");
+      console.error("Create Event Error:", error);
+      Alert.alert("Thông báo", "Đã có lỗi xảy ra. Vui lòng thử lại.");
     },
   });
 
@@ -104,39 +112,45 @@ export default function CreateEventScreen() {
     });
 
     if (!result.canceled) {
-      setImages(result.assets.map(asset => asset.uri));
+      setImages(result.assets.map((asset) => asset.uri));
     }
   };
 
   // --- Hàm xử lý submit form ---
   const handleCreateEvent = async (values) => {
     // 1. Upload ảnh lên Cloudinary
-    const imageUrls = await Promise.all(images.map(uri => uploadImageToCloudinary(uri)));
-    const validImageUrls = imageUrls.filter(url => url !== null);
+    const imageUrls = await Promise.all(
+      images.map((uri) => uploadImageToCloudinary(uri))
+    );
+    const validImageUrls = imageUrls.filter((url) => url !== null);
 
     // 2. Tạo FormData để gửi lên backend
     const formData = new FormData();
-    Object.keys(values).forEach(key => {
-        if (key === 'tickets' || key === 'media') {
-            // bỏ qua
-        } else if (key === 'date') {
-            formData.append(key, values[key].toISOString());
-        } else {
-            formData.append(key, values[key]);
-        }
+    Object.keys(values).forEach((key) => {
+      if (key === "tickets" || key === "media") {
+        // bỏ qua
+      } else if (key === "date") {
+        formData.append(key, values[key].toISOString());
+      } else {
+        formData.append(key, values[key]);
+      }
     });
 
     // Thêm tickets và media vào formData
     // Backend DRF đọc nested JSON qua stringify
-    formData.append('tickets', JSON.stringify(values.tickets));
+    formData.append("tickets", JSON.stringify(values.tickets));
     if (validImageUrls.length > 0) {
-        formData.append('media', JSON.stringify(validImageUrls.map(url => ({ file: url, type: 'image' }))));
+      formData.append(
+        "media",
+        JSON.stringify(
+          validImageUrls.map((url) => ({ file: url, type: "image" }))
+        )
+      );
     }
 
     // 3. Gọi mutation
     mutation.mutate(formData);
   };
-
 
   return (
     <LinearGradient colors={["#ffbde7", "#b7f7ff"]} style={styles.container}>
@@ -232,29 +246,71 @@ export default function CreateEventScreen() {
                 )}
 
                 <Text style={styles.sectionTitle}>Thời gian</Text>
-                <TouchableOpacity
-                  style={styles.datePickerButton}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Ionicons name="calendar-outline" size={20} color="#004D40" />
-                  <Text style={styles.datePickerText}>
-                    {values.date.toLocaleDateString("vi-VN")} -{" "}
-                    {values.date.toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.dateTimePickerContainer}>
+                  {/* Nút chọn ngày */}
+                  <TouchableOpacity
+                    style={styles.datePickerButton}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color="#004D40"
+                    />
+                    <Text style={styles.datePickerText}>
+                      {values.date.toLocaleDateString("vi-VN")}
+                    </Text>
+                  </TouchableOpacity>
+                  {/* Nút chọn giờ */}
+                  <TouchableOpacity
+                    style={styles.datePickerButton}
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Ionicons name="time-outline" size={20} color="#004D40" />
+                    <Text style={styles.datePickerText}>
+                      {values.date.toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 {showDatePicker && (
                   <DateTimePicker
                     value={values.date}
-                    mode="datetime"
-                    is24Hour={true}
+                    mode="date"
                     display="default"
                     onChange={(event, selectedDate) => {
+                      // Logic chọn ngày (giữ nguyên)
                       setShowDatePicker(false);
-                      if (selectedDate) {
-                        setFieldValue("date", selectedDate);
+                      if (event.type === "set" && selectedDate) {
+                        // Giữ lại giờ cũ, chỉ cập nhật ngày mới
+                        const newDate = new Date(values.date);
+                        newDate.setFullYear(selectedDate.getFullYear());
+                        newDate.setMonth(selectedDate.getMonth());
+                        newDate.setDate(selectedDate.getDate());
+                        setFieldValue("date", newDate);
+                      }
+                    }}
+                  />
+                )}
+
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={values.date}
+                    mode="time"
+                    is24Hour={true}
+                    display="default"
+                    onChange={(event, selectedTime) => {
+                      // Logic chọn giờ
+                      setShowTimePicker(false);
+                      if (event.type === "set" && selectedTime) {
+                        // Giữ lại ngày cũ, chỉ cập nhật giờ mới
+                        const newDate = new Date(values.date);
+                        newDate.setHours(selectedTime.getHours());
+                        newDate.setMinutes(selectedTime.getMinutes());
+                        setFieldValue("date", newDate);
                       }
                     }}
                   />
@@ -262,7 +318,6 @@ export default function CreateEventScreen() {
                 {touched.date && errors.date && (
                   <Text style={styles.errorText}>{errors.date}</Text>
                 )}
-
 
                 <Text style={styles.sectionTitle}>Quản lý vé</Text>
                 {values.tickets.map((ticket, index) => (
@@ -362,7 +417,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   headerTitle: {
     fontSize: 20,
@@ -379,8 +434,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#00796B',
-    paddingLeft: 8
+    borderLeftColor: "#00796B",
+    paddingLeft: 8,
   },
   input: {
     backgroundColor: "rgba(255, 255, 255, 0.8)",
@@ -398,13 +453,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     padding: 15,
     borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  dateTimePickerContainer: {
+    flexDirection: "row",
+    gap: 10,
   },
   datePickerText: {
     fontSize: 16,
     marginLeft: 10,
-    color: '#333'
+    color: "#333",
   },
   // Ticket styles
   ticketContainer: {
@@ -412,7 +472,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
-    position: 'relative',
+    position: "relative",
   },
   ticketInput: {
     backgroundColor: "#fff",
@@ -423,38 +483,38 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   removeTicketButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 10,
     right: 10,
   },
   addTicketButton: {
-    flexDirection: 'row',
-    backgroundColor: '#00796B',
+    flexDirection: "row",
+    backgroundColor: "#00796B",
     padding: 12,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 5,
   },
   addTicketButtonText: {
-    color: '#fff',
+    color: "#fff",
     marginLeft: 8,
-    fontWeight: 'bold'
+    fontWeight: "bold",
   },
   // Image styles
   imagePickerButton: {
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     padding: 15,
     borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   imagePickerText: {
     fontSize: 16,
     marginLeft: 10,
-    color: '#004D40',
-    fontWeight: '600',
+    color: "#004D40",
+    fontWeight: "600",
   },
   imagePreviewContainer: {
     marginTop: 10,
@@ -466,11 +526,11 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   removeImageButton: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: 5,
-    backgroundColor: 'white',
-    borderRadius: 12
+    backgroundColor: "white",
+    borderRadius: 12,
   },
   // Submit button
   submitButton: {
